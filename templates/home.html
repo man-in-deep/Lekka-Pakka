@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labour Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ========== TRICOLOR RIBBON ========== -->
+<div class="tricolor-ribbon">
+    <div class="ribbon-saffron"></div>
+    <div class="ribbon-white"></div>
+    <div class="ribbon-green"></div>
+</div>
+
+<!-- ========== HEADER ========== -->
+<header class="gov-header">
+    <img src="{{ url_for('static', filename='images/logo1.png') }}"
+         alt="Official Logo" class="top-logo">
+    <div class="header-text">
+        <h1>श्रम प्रबंधन प्रणाली</h1>
+        <p>Labour Management System</p>
+    </div>
+</header>
+
+<!-- ========== MAIN LAYOUT ========== -->
+<main class="home-main">
+    <!-- LEFT: big logo2 -->
+    <section class="left-panel">
+        <img src="{{ url_for('static', filename='images/logo2.png') }}"
+             alt="Labour Emblem" class="main-logo">
+    </section>
+
+    <!-- RIGHT: buttons + language -->
+    <section class="right-panel">
+        <h2 id="title">లేబర్ మేనేజ్‌మెంట్ సిస్టమ్</h2>
+        <p id="subtitle">కార్మికుల నిర్వహణ వ్యవస్థకు స్వాగతం</p>
+
+        <a href="{{ url_for('admin') }}" class="btn login-btn-link" id="adminBtn">అడ్మిన్</a>
+        <a href="{{ url_for('contractor') }}" class="btn login-btn-link" id="contractorBtn">కాంట్రాక్టర్</a>
+        <a href="{{ url_for('labour') }}" class="btn login-btn-link" id="labourBtn">లేబర్</a>
+
+        <div class="language-section">
+            <h3 id="languageText">భాషను ఎంచుకోండి</h3>
+            <div class="lang-buttons">
+                <button onclick="english()">English</button>
+                <button onclick="telugu()">తెలుగు</button>
+                <button onclick="hindi()">हिन्दी</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ========== LOADING OVERLAY (chakra spinner) ========== -->
+<div id="chakra-overlay" class="chakra-overlay">
+    <div class="chakra-spinner">
+        <svg viewBox="0 0 60 60" width="80" height="80">
+            <circle cx="30" cy="30" r="8" fill="none" stroke="#0B3D91" stroke-width="3"/>
+            <circle cx="30" cy="30" r="16" fill="none" stroke="#FF9933" stroke-width="1" stroke-dasharray="4 4"/>
+            <!-- Spokes -->
+            <line x1="30" y1="14" x2="30" y2="46" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="14" y1="30" x2="46" y2="30" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="18.34" y1="18.34" x2="41.66" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="41.66" y1="18.34" x2="18.34" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+        </svg>
+        <p>Loading...</p>
+    </div>
+</div>
+
+<footer>© Ministry of Labour & Employment, Government of India</footer>
+
+<script src="{{ url_for('static', filename='js/language.js') }}"></script>
+<script>
+    // ---------- ROLLING CHAKRA ANIMATION ON BUTTON CLICK ----------
+    document.querySelectorAll('.login-btn-link').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            // Show the chakra overlay
+            const overlay = document.getElementById('chakra-overlay');
+            overlay.classList.add('active');
+            // Navigate after a short delay to allow animation
+            setTimeout(() => {
+                window.location.href = href;
+            }, 700);
+        });
+    });
+</script>
+</body>
+</html>

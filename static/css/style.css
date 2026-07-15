@@ -1,0 +1,308 @@
+/* ========== FONTS ========== */
+@import url('https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700&family=Noto+Sans:wght@400;600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Mukta', 'Noto Sans', sans-serif;
+    background: #f4f6f9;
+    color: #1a2a40;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========== TRICOLOR RIBBON ========== */
+.tricolor-ribbon {
+    display: flex;
+    height: 6px;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    z-index: 9999;
+}
+.ribbon-saffron { flex: 1; background: #FF9933; }
+.ribbon-white   { flex: 1; background: white; }
+.ribbon-green   { flex: 1; background: #138808; }
+
+/* ========== HEADER ========== */
+.gov-header {
+    background: linear-gradient(135deg, #0B3D91, #0A2F6E);
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    margin-top: 6px;   /* avoid overlap with fixed ribbon */
+}
+.top-logo {
+    width: 70px;
+    height: 70px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 4px rgba(255,255,255,0.4));
+}
+.header-text h1 {
+    color: white;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.header-text p {
+    color: rgba(255,255,255,0.9);
+    font-size: 16px;
+}
+
+/* ========== HOME MAIN LAYOUT ========== */
+.home-main {
+    display: flex;
+    flex: 1;
+    min-height: calc(100vh - 90px);
+}
+.left-panel {
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f0f4fc;
+    padding: 30px;
+}
+.main-logo {
+    width: 80%;
+    max-width: 500px;
+    object-fit: contain;
+    transition: transform 0.4s;
+}
+.main-logo:hover {
+    transform: scale(1.03);
+}
+.right-panel {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    padding: 40px;
+    text-align: center;
+}
+.right-panel h2 {
+    color: #0B3D91;
+    font-size: 34px;
+    margin-bottom: 12px;
+}
+.right-panel p {
+    color: #555;
+    font-size: 20px;
+    margin-bottom: 35px;
+    max-width: 80%;
+}
+
+/* ========== BUTTONS (Home & Login) ========== */
+.btn {
+    width: 320px;
+    padding: 16px;
+    margin: 10px;
+    border-radius: 8px;
+    background: #0B3D91;
+    color: white;
+    text-decoration: none;
+    font-size: 22px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    transition: all 0.3s;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    display: inline-block;
+    border: 2px solid #0B3D91;
+}
+.btn:hover {
+    background: #FF9933;
+    border-color: #FF9933;
+    color: #0B3D91;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(255,153,51,0.4);
+}
+
+/* Language section */
+.language-section {
+    margin-top: 40px;
+}
+.language-section h3 {
+    color: #1a2a40;
+    margin-bottom: 14px;
+}
+.lang-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.lang-buttons button {
+    padding: 10px 20px;
+    border: 2px solid #0B3D91;
+    border-radius: 6px;
+    background: transparent;
+    color: #0B3D91;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.lang-buttons button:hover {
+    background: #0B3D91;
+    color: white;
+}
+
+/* ========== LOGIN PAGES ========== */
+.login-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #eef3f8;
+    padding: 20px;
+}
+.login-card {
+    width: 420px;
+    background: white;
+    padding: 35px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border-top: 5px solid #FF9933;
+    text-align: center;
+    animation: fadeInUp 0.6s ease;
+}
+.login-card h2 {
+    color: #0B3D91;
+    margin-bottom: 25px;
+    font-size: 24px;
+    letter-spacing: 1px;
+}
+.login-card label {
+    display: block;
+    text-align: left;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #1a2a40;
+}
+.login-card input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+    border: 1px solid #ccd9e6;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border 0.3s;
+}
+.login-card input:focus {
+    outline: none;
+    border-color: #FF9933;
+    box-shadow: 0 0 0 2px rgba(255,153,51,0.2);
+}
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    background: #0B3D91;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+    text-transform: uppercase;
+}
+.login-btn:hover {
+    background: #FF9933;
+    color: #0B3D91;
+}
+.back-btn {
+    display: inline-block;
+    margin-top: 20px;
+    color: #0B3D91;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+.back-btn:hover {
+    color: #FF9933;
+}
+
+/* ========== LOADING OVERLAY (Rolling Chakra) ========== */
+.chakra-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+.chakra-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+.chakra-spinner {
+    text-align: center;
+}
+.chakra-spinner svg {
+    animation: spin 1s linear infinite;
+}
+.chakra-spinner p {
+    margin-top: 15px;
+    font-size: 18px;
+    color: #0B3D91;
+    font-weight: 600;
+}
+@keyframes spin {
+    100% { transform: rotate(360deg); }
+}
+
+/* ========== FOOTER ========== */
+footer {
+    background: #0A2F6E;
+    color: white;
+    text-align: center;
+    padding: 12px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: #0B3D91; border-radius: 10px; }
+::-webkit-scrollbar-track { background: #f0f4fc; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 992px) {
+    .home-main { flex-direction: column; }
+    .left-panel, .right-panel { width: 100%; }
+    .left-panel { height: 40vh; }
+    .right-panel { padding: 30px 20px; }
+    .btn { width: 280px; }
+    .gov-header { flex-direction: column; text-align: center; gap: 10px; }
+    .top-logo { width: 60px; height: 60px; }
+}
+@media (max-width: 768px) {
+    .right-panel h2 { font-size: 28px; }
+    .right-panel p  { font-size: 18px; }
+    .login-card { width: 90%; padding: 25px; }
+    .header-text h1 { font-size: 22px; }
+}
+@media (max-width: 480px) {
+    .btn { width: 220px; font-size: 18px; }
+    .lang-buttons button { padding: 8px 15px; }
+}
