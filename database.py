@@ -184,3 +184,35 @@ def get_all_workers():
     cur.close()
     conn.close()
     return rows
+
+def init_contractor_table():
+    """Create the contractors table if it doesn't exist."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS contractors (
+            id SERIAL PRIMARY KEY,
+            contractor_id TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def save_contractor_id(contractor_id):
+    """
+    Insert a contractor ID if it does not already exist.
+    Uses ON CONFLICT DO NOTHING to avoid duplicates.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO contractors (contractor_id)
+        VALUES (%s)
+        ON CONFLICT (contractor_id) DO NOTHING;
+    """, (contractor_id,))
+    conn.commit()
+    cur.close()
+    conn.close()

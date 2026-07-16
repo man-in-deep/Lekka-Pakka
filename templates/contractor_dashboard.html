@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contractor Dashboard – Labour Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 70vh;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+            border: 2px solid #0B3D91;
+        }
+        .dashboard-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 30px;
+            background: #eef3f8;
+        }
+        .contractor-id-display {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(11,61,145,0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 1000;
+        }
+        .back-link {
+            margin: 20px 0;
+        }
+        .back-link a {
+            padding: 12px 28px;
+            background: #0B3D91;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: 0.3s;
+            display: inline-block;
+        }
+        .back-link a:hover {
+            background: #FF9933;
+            color: #0B3D91;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tricolor-ribbon">
+    <div class="ribbon-saffron"></div>
+    <div class="ribbon-white"></div>
+    <div class="ribbon-green"></div>
+</div>
+
+<header class="gov-header">
+    <img src="{{ url_for('static', filename='images/logo1.png') }}"
+         alt="Official Logo" class="top-logo">
+    <div class="header-text">
+        <h1>श्रम प्रबंधन प्रणाली</h1>
+        <p>Labour Management System</p>
+    </div>
+</header>
+
+<div class="dashboard-container">
+    <!-- Contractor ID displayed top-right -->
+    <div class="contractor-id-display">
+        ID: {{ contractor_id }}
+    </div>
+
+    <h2 style="color:#0B3D91;">Contractor Map – Andhra Pradesh</h2>
+
+    <div id="map"></div>
+
+    <div class="back-link">
+        <a href="{{ url_for('contractor') }}" id="backToLogin">← Back to Contractor Login</a>
+    </div>
+</div>
+
+<!-- Chakra loading overlay -->
+<div id="chakra-overlay" class="chakra-overlay">
+    <div class="chakra-spinner">
+        <svg viewBox="0 0 60 60" width="80" height="80">
+            <circle cx="30" cy="30" r="8" fill="none" stroke="#0B3D91" stroke-width="3"/>
+            <circle cx="30" cy="30" r="16" fill="none" stroke="#FF9933" stroke-width="1" stroke-dasharray="4 4"/>
+            <line x1="30" y1="14" x2="30" y2="46" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="14" y1="30" x2="46" y2="30" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="18.34" y1="18.34" x2="41.66" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="41.66" y1="18.34" x2="18.34" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+        </svg>
+        <p>Loading...</p>
+    </div>
+</div>
+
+<footer>© Ministry of Labour & Employment, Government of India</footer>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Map initialisation – centre on AP
+    var map = L.map('map').setView([16.5, 80.6], 7);  // lat, lng, zoom
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Data passed from Flask
+    var circlesData = {{ map_data | tojson }};
+    console.log(circlesData);
+
+    // Define colours by priority
+    var priorityColors = {
+        1: '#00cc00',  // green
+        2: '#ffcc00',  // yellow
+        3: '#ff3300'   // red
+    };
+
+    // Draw circles
+    circlesData.forEach(function(item) {
+        var color = priorityColors[item.priority] || '#888';
+        var circle = L.circle([item.lat, item.lng], {
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.2,  // transparent fill
+            radius: item.radius_m
+        }).addTo(map);
+
+        // Optional popup with info
+        circle.bindPopup(
+            '<b>' + item.mandal + '</b><br>' +
+            'District: ' + item.district + '<br>' +
+            'Priority: ' + item.priority + '<br>' +
+            'Radius: ' + (item.radius_m / 1000) + ' km'
+        );
+    });
+
+    // Back button Chakra animation
+    document.getElementById('backToLogin').addEventListener('click', function(e) {
+        e.preventDefault();
+        var href = this.getAttribute('href');
+        document.getElementById('chakra-overlay').classList.add('active');
+        setTimeout(function() {
+            window.location.href = href;
+        }, 700);
+    });
+</script>
+</body>
+</html>

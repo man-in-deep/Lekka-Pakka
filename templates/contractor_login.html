@@ -25,19 +25,14 @@
 
 <div class="login-container">
     <div class="login-card">
-        <h2>CONTRACTOR LOGIN</h2>
-        <form action="#" method="post">
-            <label>Username</label>
-            <input type="text" placeholder="Enter Username" required>
-            <label>Password</label>
-            <input type="password" placeholder="Enter Password" required>
-            <button type="submit" class="login-btn">Login</button>
-        </form>
+        <h2>CONTRACTOR</h2>
+        <p style="margin-bottom: 20px; color: #555;">Click Proceed to continue with your device ID</p>
+        <button id="proceedBtn" class="login-btn">Proceed</button>
         <a href="{{ url_for('home') }}" class="back-btn">← Back to Home</a>
     </div>
 </div>
 
-<!-- LOADING OVERLAY (chakra spinner) -->
+<!-- Chakra loading overlay -->
 <div id="chakra-overlay" class="chakra-overlay">
     <div class="chakra-spinner">
         <svg viewBox="0 0 60 60" width="80" height="80">
@@ -55,7 +50,54 @@
 <footer>© Ministry of Labour & Employment, Government of India</footer>
 
 <script>
-    // ROLLING CHAKRA on back‑link click
+    // Generate or retrieve a unique device ID
+    function getDeviceId() {
+        let deviceId = localStorage.getItem('device_id');
+        if (!deviceId) {
+            // Use crypto API if available, else fallback random string
+            if (window.crypto && window.crypto.randomUUID) {
+                deviceId = crypto.randomUUID();
+            } else {
+                deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            localStorage.setItem('device_id', deviceId);
+        }
+        return deviceId;
+    }
+
+    document.getElementById('proceedBtn').addEventListener('click', function() {
+        // Show Chakra spinner
+        document.getElementById('chakra-overlay').classList.add('active');
+
+        const deviceId = getDeviceId();
+        const contractorId = 'contr-' + deviceId;
+
+        // Send to server via fetch
+        fetch('/contractor/proceed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contractor_id: contractorId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                document.getElementById('chakra-overlay').classList.remove('active');
+            }
+        })
+        .catch(err => {
+            alert('Network error. Please try again.');
+            document.getElementById('chakra-overlay').classList.remove('active');
+        });
+    });
+
+    // Also add Chakra on back-to-home (existing)
     document.querySelector('.back-btn').addEventListener('click', function(e) {
         e.preventDefault();
         const href = this.getAttribute('href');
