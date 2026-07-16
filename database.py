@@ -169,3 +169,18 @@ def refresh_workers_cycle():
     """Delete old workers table and repopulate from Gemini."""
     delete_workers_table()
     populate_workers()
+
+
+def get_all_workers():
+    """
+    Returns all rows from the workers table,
+    ordered by priority then worker_type.
+    Each row is a tuple: (priority, worker_type, hourly_rate)
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT priority, worker_type, hourly_rate FROM workers ORDER BY priority, worker_type;")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows

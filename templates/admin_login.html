@@ -26,11 +26,18 @@
 <div class="login-container">
     <div class="login-card">
         <h2>ADMIN LOGIN</h2>
-        <form action="#" method="post">
+
+        {% if error %}
+        <div style="background:#ffe6e6; color:#b30000; padding:12px; border-radius:6px; margin-bottom:20px; font-weight:600;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('admin') }}" method="post">
             <label>Username</label>
-            <input type="text" placeholder="Enter Username" required>
+            <input type="text" name="username" placeholder="Enter Username" required>
             <label>Password</label>
-            <input type="password" placeholder="Enter Password" required>
+            <input type="password" name="password" placeholder="Enter Password" required>
             <button type="submit" class="login-btn">Login</button>
         </form>
         <a href="{{ url_for('home') }}" class="back-btn">← Back to Home</a>
