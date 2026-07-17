@@ -5,52 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contractor Dashboard – Labour Management System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map {
-            height: 70vh;
-            width: 100%;
-            margin-top: 20px;
-            border-radius: 10px;
-            border: 2px solid #0B3D91;
-        }
-        .dashboard-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px 30px;
-            background: #eef3f8;
-        }
-        .contractor-id-display {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            background: rgba(11,61,145,0.9);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            z-index: 1000;
-        }
-        .back-link {
-            margin: 20px 0;
-        }
-        .back-link a {
-            padding: 12px 28px;
-            background: #0B3D91;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: 0.3s;
-            display: inline-block;
-        }
-        .back-link a:hover {
-            background: #FF9933;
-            color: #0B3D91;
-        }
+        /* same styles as before */
+        #map { height: 70vh; width: 100%; margin-top: 20px; border-radius: 10px; border: 2px solid #0B3D91; }
+        .dashboard-container { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px 30px; background: #eef3f8; }
+        .contractor-id-display { position: absolute; top: 20px; right: 30px; background: rgba(11,61,145,0.9); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; z-index: 1000; }
+        .back-link { margin: 20px 0; }
+        .back-link a { padding: 12px 28px; background: #0B3D91; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: 0.3s; display: inline-block; }
+        .back-link a:hover { background: #FF9933; color: #0B3D91; }
+        #location-info { background: #fff; padding: 15px 25px; border-radius: 8px; margin-top: 20px; width: 95%; max-width: 1100px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); font-weight: 600; color: #0B3D91; }
+        .wage-table-container { width: 95%; max-width: 1100px; margin-top: 25px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.1); border: 1px solid #ccd9e6; }
+        .wage-table-container table { width: 100%; border-collapse: collapse; }
+        .wage-table-container th { background: #0B3D91; color: white; padding: 14px 10px; text-align: left; font-weight: 600; }
+        .wage-table-container td { padding: 12px 10px; border-bottom: 1px solid #e0e6ed; color: #1a2a40; }
+        .wage-table-container tr:nth-child(even) td { background: #f8fafc; }
     </style>
 </head>
 <body>
@@ -71,7 +40,6 @@
 </header>
 
 <div class="dashboard-container">
-    <!-- Contractor ID displayed top-right -->
     <div class="contractor-id-display">
         ID: {{ contractor_id }}
     </div>
@@ -80,12 +48,26 @@
 
     <div id="map"></div>
 
+    <div id="location-info" style="display: none;"></div>
+
+    <div id="wage-table-container" class="wage-table-container" style="display: none;">
+        <table id="wage-table">
+            <thead>
+                <tr>
+                    <th>Worker Type</th>
+                    <th>Calculated Hourly Rate (₹)</th>
+                </tr>
+            </thead>
+            <tbody id="wage-table-body">
+            </tbody>
+        </table>
+    </div>
+
     <div class="back-link">
         <a href="{{ url_for('contractor') }}" id="backToLogin">← Back to Contractor Login</a>
     </div>
 </div>
 
-<!-- Chakra loading overlay -->
 <div id="chakra-overlay" class="chakra-overlay">
     <div class="chakra-spinner">
         <svg viewBox="0 0 60 60" width="80" height="80">
@@ -102,47 +84,186 @@
 
 <footer>© Ministry of Labour & Employment, Government of India</footer>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    // Map initialisation – centre on AP
-    var map = L.map('map').setView([16.5, 80.6], 7);  // lat, lng, zoom
 
+<!-- Injection of data -->
+<script>
+    var circlesData = {{ map_data | tojson }};
+    var workersData = {{ workers | tojson }};
+    console.log("Workers raw:", workersData);
+</script>
+
+<script>
+    // ---------- Map setup (unchanged) ----------
+    var map = L.map('map').setView([16.5, 80.6], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Data passed from Flask
-    var circlesData = {{ map_data | tojson }};
-    console.log(circlesData);
+    var priorityColors = { 1: '#00cc00', 2: '#ffcc00', 3: '#ff3300' };
+    var circleObjects = [];
 
-    // Define colours by priority
-    var priorityColors = {
-        1: '#00cc00',  // green
-        2: '#ffcc00',  // yellow
-        3: '#ff3300'   // red
-    };
-
-    // Draw circles
     circlesData.forEach(function(item) {
         var color = priorityColors[item.priority] || '#888';
         var circle = L.circle([item.lat, item.lng], {
-            color: color,
-            fillColor: color,
-            fillOpacity: 0.2,  // transparent fill
-            radius: item.radius_m
+            color: color, fillColor: color, fillOpacity: 0.2, radius: item.radius_m
         }).addTo(map);
-
-        // Optional popup with info
         circle.bindPopup(
             '<b>' + item.mandal + '</b><br>' +
             'District: ' + item.district + '<br>' +
             'Priority: ' + item.priority + '<br>' +
             'Radius: ' + (item.radius_m / 1000) + ' km'
         );
+        circleObjects.push({
+            circle: circle,
+            priority: item.priority,
+            lat: item.lat,
+            lng: item.lng,
+            radius_m: item.radius_m,
+            district: item.district,
+            mandal: item.mandal
+        });
     });
 
-    // Back button Chakra animation
+    // ---------- Geolocation & wage calculation ----------
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371000;
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lng2-lng1) * Math.PI/180;
+        const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    processUserLocation(pos.coords.latitude, pos.coords.longitude);
+                },
+                function(err) {
+                    console.warn("Geolocation error, using fallback");
+                    var center = map.getCenter();
+                    processUserLocation(center.lat, center.lng);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        } else {
+            alert("Geolocation not supported.");
+        }
+    }
+
+    function processUserLocation(userLat, userLng) {
+        map.setView([userLat, userLng], 10);
+        var userMarker = L.marker([userLat, userLng]).addTo(map);
+        userMarker.bindPopup("<b>Your Location</b>").openPopup();
+
+        var intersectingCircles = [];
+        circleObjects.forEach(function(obj) {
+            if (haversineDistance(userLat, userLng, obj.lat, obj.lng) <= obj.radius_m) {
+                intersectingCircles.push(obj);
+            }
+        });
+
+        var infoDiv = document.getElementById('location-info');
+        infoDiv.style.display = 'block';
+        var html = '<strong>Your Location:</strong> ' + userLat.toFixed(4) + ', ' + userLng.toFixed(4) + '<br>';
+        if (intersectingCircles.length > 0) {
+            var counts = {1:0, 2:0, 3:0};
+            intersectingCircles.forEach(c => counts[c.priority]++);
+            html += '<strong>Intersecting Circles:</strong> ' + intersectingCircles.length +
+                    ' (Green: ' + counts[1] + ', Yellow: ' + counts[2] + ', Red: ' + counts[3] + ')';
+        } else {
+            html += '<strong>No intersecting circles.</strong>';
+        }
+        infoDiv.innerHTML = html;
+
+        if (intersectingCircles.length > 0) {
+            var wages = computeWages(intersectingCircles);
+            displayWageTable(wages);
+        } else {
+            document.getElementById('wage-table-container').style.display = 'none';
+        }
+    }
+
+    function computeWages(intersectingCircles) {
+        // Build workerRates: key = worker_type, value = {1: rate, 2: rate, 3: rate}
+        var workerRates = {};
+        workersData.forEach(function(w) {
+            var priority = w[0];          // number (or string)
+            var workerType = w[1];        // string
+            var rate = parseFloat(w[2]);  // CONVERT TO NUMBER (this was the missing step)
+            if (isNaN(rate)) {
+                console.warn("Invalid rate for", workerType, "priority", priority, "value:", w[2]);
+                rate = 0;   // fallback, avoid NaN
+            }
+            if (!workerRates[workerType]) workerRates[workerType] = {};
+            workerRates[workerType][priority] = rate;
+        });
+
+        console.log("workerRates built:", workerRates);
+
+        var prioritiesPresent = [...new Set(intersectingCircles.map(c => c.priority))];
+        var workerTypes = Object.keys(workerRates);
+
+        var results = [];
+        workerTypes.forEach(function(worker) {
+            var ratesByPriority = workerRates[worker];
+            var finalRate = 0;
+
+            if (prioritiesPresent.length === 1) {
+                var onlyPriority = prioritiesPresent[0];
+                var base = ratesByPriority[onlyPriority] || 0;
+                var bonusPercent = onlyPriority === 1 ? 20 : onlyPriority === 2 ? 15 : 10;
+                finalRate = base * (1 + bonusPercent / 100);
+            } else {
+                // collect base pays for each intersecting circle
+                var basePays = [];
+                intersectingCircles.forEach(function(circle) {
+                    var bp = ratesByPriority[circle.priority];
+                    if (bp !== undefined) basePays.push(bp);
+                });
+                if (basePays.length === 0) {
+                    finalRate = 0;
+                } else {
+                    var avg = basePays.reduce((a, b) => a + b, 0) / basePays.length;
+                    var extras = 0;
+                    intersectingCircles.forEach(function(circle) {
+                        var bp = ratesByPriority[circle.priority];
+                        if (bp === undefined) return;
+                        if (circle.priority === 1) extras += bp * 0.10;
+                        else if (circle.priority === 2) extras += bp * 0.075;
+                        else if (circle.priority === 3) extras += bp * 0.05;
+                    });
+                    finalRate = avg + extras;
+                }
+            }
+            finalRate = finalRate * 1.05; // inflation
+            results.push({
+                worker_type: worker,
+                hourly_rate: Math.round(finalRate * 100) / 100
+            });
+        });
+        console.log("Computed wages:", results);
+        return results;
+    }
+
+    function displayWageTable(wages) {
+        var container = document.getElementById('wage-table-container');
+        var tbody = document.getElementById('wage-table-body');
+        tbody.innerHTML = '';
+        wages.forEach(function(item) {
+            var row = '<tr><td>' + item.worker_type + '</td><td>' + item.hourly_rate.toFixed(2) + '</td></tr>';
+            tbody.innerHTML += row;
+        });
+        container.style.display = 'block';
+    }
+
+    // start geolocation
+    getUserLocation();
+
+    // Chakra back button (unchanged)
     document.getElementById('backToLogin').addEventListener('click', function(e) {
         e.preventDefault();
         var href = this.getAttribute('href');

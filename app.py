@@ -5,21 +5,18 @@ from excel_reader import get_map_data
 import atexit
 
 app = Flask(__name__)
-app.secret_key = '272b5b59806b40b20b29691bcaf7af99fea3d053a338cbd0f2d80d9efb15f9cf'  # keep your existing secret key
+app.secret_key = '272b5b59806b40b20b29691bcaf7af99fea3d053a338cbd0f2d80d9efb15f9cf'
 
-# ---------- Background scheduler: every 24 hours ----------
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=check_and_refresh_data, trigger="interval", hours=24)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
-# ---------- Before home page request, ensure data is fresh ----------
 @app.before_request
 def before_home():
     if request.endpoint == 'home':
         check_and_refresh_data()
 
-# ---------- Routes ----------
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -48,18 +45,14 @@ def admin_dashboard():
 def contractor():
     return render_template("contractor_login.html")
 
-# New: contractor proceed (called by AJAX)
 @app.route("/contractor/proceed", methods=["POST"])
 def contractor_proceed():
     data = request.get_json()
     contractor_id = data.get("contractor_id", "").strip()
     if not contractor_id:
         return jsonify({"error": "No ID provided"}), 400
-
-    # Create table if needed and save the ID (only once per device)
     init_contractor_table()
     save_contractor_id(contractor_id)
-
     session["contractor_id"] = contractor_id
     return jsonify({"redirect": url_for("contractor_dashboard")})
 
@@ -68,10 +61,12 @@ def contractor_dashboard():
     if not session.get("contractor_id"):
         return redirect(url_for("contractor"))
     contractor_id = session["contractor_id"]
-    map_data = get_map_data()   # list of circles from Excel
+    map_data = get_map_data()
+    workers = get_all_workers()   # <-- newly added
     return render_template("contractor_dashboard.html",
                            contractor_id=contractor_id,
-                           map_data=map_data)
+                           map_data=map_data,
+                           workers=workers)      # <-- newly passed
 
 @app.route("/labour")
 def labour():
