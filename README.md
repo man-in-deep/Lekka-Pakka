@@ -6,7 +6,6 @@ A location‑based, AI‑powered platform for daily‑wage workers and contracto
 
 Watch the full working of the project:  
 https://drive.google.com/file/d/1vqDOtzVHZpx_PGx-5W2ib9uv-lYOKXQi/view
-https://drive.google.com/file/d/1vqDOtzVHZpx_PGx-5W2ib9uv-lYOKXQi/view?usp=drive_link
 
 ---
 
