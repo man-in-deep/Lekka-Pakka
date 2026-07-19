@@ -62,15 +62,68 @@ def contractor_dashboard():
         return redirect(url_for("contractor"))
     contractor_id = session["contractor_id"]
     map_data = get_map_data()
-    workers = get_all_workers()   # <-- newly added
+    workers = get_all_workers()
     return render_template("contractor_dashboard.html",
                            contractor_id=contractor_id,
                            map_data=map_data,
-                           workers=workers)      # <-- newly passed
+                           workers=workers)
+
+# ---------- Labour Routes (appended, no changes above) ----------
+from database import init_labourer_table, save_labourer_id, get_labour_earnings, save_labour_entry
 
 @app.route("/labour")
 def labour():
     return render_template("labour_login.html")
+
+@app.route("/labour/proceed", methods=["POST"])
+def labour_proceed():
+    data = request.get_json()
+    labour_id = data.get("labour_id", "").strip()
+    if not labour_id:
+        return jsonify({"error": "No ID provided"}), 400
+    init_labourer_table()
+    save_labourer_id(labour_id)
+    session["labour_id"] = labour_id
+    return jsonify({"redirect": url_for("labour_dashboard")})
+
+@app.route("/labour/dashboard")
+def labour_dashboard():
+    if not session.get("labour_id"):
+        return redirect(url_for("labour"))
+    labour_id = session["labour_id"]
+    map_data = get_map_data()
+    workers = get_all_workers()
+    earnings = get_labour_earnings(labour_id)
+    total_contractor_paid = sum(e["contractor_paid"] for e in earnings)
+    return render_template("labour_dashboard.html",
+                           labour_id=labour_id,
+                           map_data=map_data,
+                           workers=workers,
+                           earnings=earnings,
+                           total_contractor_paid=total_contractor_paid)
+
+@app.route("/labour/save_entry", methods=["POST"])
+def labour_save_entry():
+    if not session.get("labour_id"):
+        return jsonify({"error": "Not logged in"}), 401
+    labour_id = session["labour_id"]
+    data = request.get_json()
+    worker_type = data.get("worker_type")
+    hours = data.get("hours")
+    calculated = data.get("calculated")
+    contractor_paid = data.get("contractor_paid")
+    if not all([worker_type, hours, calculated, contractor_paid]):
+        return jsonify({"error": "Missing fields"}), 400
+    try:
+        hours = float(hours)
+        calculated = float(calculated)
+        contractor_paid = float(contractor_paid)
+    except ValueError:
+        return jsonify({"error": "Invalid numbers"}), 400
+    if hours > 10:
+        return jsonify({"error": "Hours cannot exceed 10"}), 400
+    save_labour_entry(labour_id, worker_type, hours, calculated, contractor_paid)
+    return jsonify({"success": True})
 
 if __name__ == "__main__":
     check_and_refresh_data()

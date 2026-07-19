@@ -25,19 +25,24 @@
 
 <div class="login-container">
     <div class="login-card">
-        <h2>LABOUR LOGIN</h2>
-        <form action="#" method="post">
-            <label>Username</label>
-            <input type="text" placeholder="Enter Username" required>
-            <label>Password</label>
-            <input type="password" placeholder="Enter Password" required>
-            <button type="submit" class="login-btn">Login</button>
-        </form>
-        <a href="{{ url_for('home') }}" class="back-btn">← Back to Home</a>
+        <h2 id="labourLoginTitle">Labour Login</h2>
+        <p id="proceedMsg">Click Proceed to continue with your device ID</p>
+        <button id="proceedBtn" class="login-btn">Proceed</button>
+        
+        <!-- Language switcher – now styled like the proceed button -->
+        <div class="language-section" style="margin-top:25px;">
+            <h3 id="languageText">Select Language</h3>
+            <div class="language-buttons" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="setLanguage('en')" class="login-btn" style="width: auto; padding: 10px 24px; font-size: 16px; margin: 0;">English</button>
+                <button onclick="setLanguage('te')" class="login-btn" style="width: auto; padding: 10px 24px; font-size: 16px; margin: 0;">తెలుగు</button>
+                <button onclick="setLanguage('hi')" class="login-btn" style="width: auto; padding: 10px 24px; font-size: 16px; margin: 0;">हिन्दी</button>
+            </div>
+        </div>
+        
+        <a href="{{ url_for('home') }}" class="back-btn" id="backHome">← Back to Home</a>
     </div>
 </div>
 
-<!-- LOADING OVERLAY (chakra spinner) -->
 <div id="chakra-overlay" class="chakra-overlay">
     <div class="chakra-spinner">
         <svg viewBox="0 0 60 60" width="80" height="80">
@@ -48,19 +53,100 @@
             <line x1="18.34" y1="18.34" x2="41.66" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
             <line x1="41.66" y1="18.34" x2="18.34" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
         </svg>
-        <p>Loading...</p>
+        <p id="loadingText">Loading...</p>
     </div>
 </div>
 
 <footer>© Ministry of Labour & Employment, Government of India</footer>
 
 <script>
-    // ROLLING CHAKRA on back‑link click
-    document.querySelector('.back-btn').addEventListener('click', function(e) {
+    const langMap = {
+        en: {
+            labourLoginTitle: "Labour Login",
+            proceedMsg: "Click Proceed to continue with your device ID",
+            proceedBtn: "Proceed",
+            languageText: "Select Language",
+            backHome: "← Back to Home",
+            loadingText: "Loading..."
+        },
+        te: {
+            labourLoginTitle: "లేబర్ లాగిన్",
+            proceedMsg: "మీ పరికర ID తో కొనసాగడానికి Proceed క్లిక్ చేయండి",
+            proceedBtn: "కొనసాగించు",
+            languageText: "భాషను ఎంచుకోండి",
+            backHome: "← హోమ్‌కి తిరిగి",
+            loadingText: "లోడ్ అవుతోంది..."
+        },
+        hi: {
+            labourLoginTitle: "श्रम लॉगिन",
+            proceedMsg: "अपने डिवाइस ID के साथ जारी रखने के लिए Proceed पर क्लिक करें",
+            proceedBtn: "आगे बढ़ें",
+            languageText: "भाषा चुनें",
+            backHome: "← होम पर वापस जाएं",
+            loadingText: "लोड हो रहा है..."
+        }
+    };
+
+    function setLanguage(lang) {
+        const t = langMap[lang];
+        document.getElementById("labourLoginTitle").innerText = t.labourLoginTitle;
+        document.getElementById("proceedMsg").innerText = t.proceedMsg;
+        document.getElementById("proceedBtn").innerText = t.proceedBtn;
+        document.getElementById("languageText").innerText = t.languageText;
+        document.getElementById("backHome").innerText = t.backHome;
+        document.getElementById("loadingText").innerText = t.loadingText;
+        localStorage.setItem("labour_lang", lang);
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+        const saved = localStorage.getItem("labour_lang") || "en";
+        setLanguage(saved);
+    });
+
+    function getDeviceId() {
+        let deviceId = localStorage.getItem("labour_device_id");
+        if (!deviceId) {
+            if (window.crypto && window.crypto.randomUUID) {
+                deviceId = crypto.randomUUID();
+            } else {
+                deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            localStorage.setItem("labour_device_id", deviceId);
+        }
+        return deviceId;
+    }
+
+    document.getElementById("proceedBtn").addEventListener("click", function() {
+        document.getElementById("chakra-overlay").classList.add("active");
+        const labourId = "labour-" + getDeviceId();
+        fetch("/labour/proceed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ labour_id: labourId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.error || "Error");
+                document.getElementById("chakra-overlay").classList.remove("active");
+            }
+        })
+        .catch(err => {
+            alert("Network error");
+            document.getElementById("chakra-overlay").classList.remove("active");
+        });
+    });
+
+    document.querySelector(".back-btn").addEventListener("click", function(e) {
         e.preventDefault();
-        const href = this.getAttribute('href');
-        document.getElementById('chakra-overlay').classList.add('active');
-        setTimeout(() => { window.location.href = href; }, 700);
+        document.getElementById("chakra-overlay").classList.add("active");
+        setTimeout(() => { window.location.href = this.href; }, 700);
     });
 </script>
 </body>

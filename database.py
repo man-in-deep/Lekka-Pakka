@@ -1,17 +1,15 @@
 import psycopg2
 from datetime import date
-import time   # needed for the 4-second delay (free tier)
+import time
 from config import DATABASE_URL, WORKER_TYPES, REGIONS
 from gemini_service import get_hourly_rate
 
 
 def get_connection():
-    """Return a new database connection."""
     return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
-    """Create the date_tracker table if it doesn't exist yet."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -27,7 +25,6 @@ def init_db():
 
 
 def get_latest_start_date():
-    """Get the most recent start date, or None if the table is empty."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT start_date FROM date_tracker ORDER BY id DESC LIMIT 1;")
@@ -38,7 +35,6 @@ def get_latest_start_date():
 
 
 def insert_new_start_date(new_date):
-    """Insert a new start date into date_tracker."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("INSERT INTO date_tracker (start_date) VALUES (%s);", (new_date,))
@@ -48,7 +44,6 @@ def insert_new_start_date(new_date):
 
 
 def workers_table_exists():
-    """Check if the workers table exists."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -64,7 +59,6 @@ def workers_table_exists():
 
 
 def create_workers_table():
-    """Create the workers table (if missing)."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -81,7 +75,6 @@ def create_workers_table():
 
 
 def delete_workers_table():
-    """Drop the workers table."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("DROP TABLE IF EXISTS workers;")
@@ -91,30 +84,15 @@ def delete_workers_table():
 
 
 def populate_workers():
-    """
-    1. Calls Gemini ONLY for Gajuwaka, Visakhapatnam (32 calls).
-    2. Derives Ibrahimpatnam rate = Visakhapatnam rate - 10 (min ₹10).
-    3. Derives Araku Valley rate = Visakhapatnam rate - 20 (min ₹10).
-    4. Inserts 96 rows: 32 workers × 3 priorities.
-    5. Sleeps 4 seconds between API calls (respects free tier 15 RPM).
-    """
-    create_workers_table()   # make sure table exists
+    create_workers_table()
     conn = get_connection()
     cur = conn.cursor()
-
-    # We only need the first region (Visakhapatnam) for the API call
     base_location = REGIONS[0]["name"]
-
     for worker in WORKER_TYPES:
-        # Step 1: Get Visakhapatnam wage from Gemini
         base_rate = get_hourly_rate(worker, base_location)
-
-        # Step 2: Derive the three rates (with floor ₹10)
-        rate_p1 = base_rate                 # Priority 1
-        rate_p2 = max(10, base_rate - 10)   # Priority 2 (Ibrahimpatnam)
-        rate_p3 = max(10, base_rate - 20)   # Priority 3 (Araku Valley)
-
-        # Step 3: Insert three rows
+        rate_p1 = base_rate
+        rate_p2 = max(10, base_rate - 10)
+        rate_p3 = max(10, base_rate - 20)
         cur.execute(
             "INSERT INTO workers (priority, worker_type, hourly_rate) VALUES (%s, %s, %s);",
             (1, worker, rate_p1)
@@ -127,56 +105,35 @@ def populate_workers():
             "INSERT INTO workers (priority, worker_type, hourly_rate) VALUES (%s, %s, %s);",
             (3, worker, rate_p3)
         )
-
-        # Wait 4 seconds to stay within free‑tier 15 RPM limit
         time.sleep(4)
-
     conn.commit()
     cur.close()
     conn.close()
 
 
 def check_and_refresh_data():
-    """
-    Main entry point – called before home page & every 24 hours.
-    Ensures the 15‑day cycle is respected:
-      - No start date? → create one & refresh.
-      - Older than 15 days? → new start date & refresh.
-      - Otherwise → do nothing (just ensure table exists).
-    """
     init_db()
     today = date.today()
     latest_date = get_latest_start_date()
-
     if latest_date is None:
-        # First run ever
         insert_new_start_date(today)
         refresh_workers_cycle()
         return
-
     days_passed = (today - latest_date).days
     if days_passed >= 15:
-        # 15‑day cycle ended → refresh everything
         insert_new_start_date(today)
         refresh_workers_cycle()
     else:
-        # Within the 15‑day window – make sure workers table exists
         if not workers_table_exists():
             refresh_workers_cycle()
 
 
 def refresh_workers_cycle():
-    """Delete old workers table and repopulate from Gemini."""
     delete_workers_table()
     populate_workers()
 
 
 def get_all_workers():
-    """
-    Returns all rows from the workers table,
-    ordered by priority then worker_type.
-    Each row is a tuple: (priority, worker_type, hourly_rate)
-    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT priority, worker_type, hourly_rate FROM workers ORDER BY priority, worker_type;")
@@ -185,8 +142,8 @@ def get_all_workers():
     conn.close()
     return rows
 
+
 def init_contractor_table():
-    """Create the contractors table if it doesn't exist."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -202,10 +159,6 @@ def init_contractor_table():
 
 
 def save_contractor_id(contractor_id):
-    """
-    Insert a contractor ID if it does not already exist.
-    Uses ON CONFLICT DO NOTHING to avoid duplicates.
-    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -216,3 +169,90 @@ def save_contractor_id(contractor_id):
     conn.commit()
     cur.close()
     conn.close()
+
+
+# ========== LABOUR FUNCTIONS (appended below) ==========
+def init_labourer_table():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS labourers (
+            id SERIAL PRIMARY KEY,
+            labour_id TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def save_labourer_id(labour_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO labourers (labour_id)
+        VALUES (%s)
+        ON CONFLICT (labour_id) DO NOTHING;
+    """, (labour_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def init_labour_earnings_table():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS labour_earnings (
+            id SERIAL PRIMARY KEY,
+            labour_id TEXT NOT NULL,
+            date DATE NOT NULL DEFAULT CURRENT_DATE,
+            worker_type VARCHAR(100) NOT NULL,
+            hours DECIMAL NOT NULL,
+            calculated_earnings DECIMAL NOT NULL,
+            contractor_paid DECIMAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def save_labour_entry(labour_id, worker_type, hours, calculated, contractor_paid):
+    init_labour_earnings_table()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO labour_earnings (labour_id, worker_type, hours, calculated_earnings, contractor_paid)
+        VALUES (%s, %s, %s, %s, %s);
+    """, (labour_id, worker_type, hours, calculated, contractor_paid))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def get_labour_earnings(labour_id):
+    init_labour_earnings_table()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT date, worker_type, hours, calculated_earnings, contractor_paid
+        FROM labour_earnings
+        WHERE labour_id = %s
+        ORDER BY date DESC;
+    """, (labour_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [
+        {
+            "date": row[0].strftime("%Y-%m-%d"),
+            "worker_type": row[1],
+            "hours": float(row[2]),
+            "calculated_earnings": float(row[3]),
+            "contractor_paid": float(row[4])
+        }
+        for row in rows
+    ]

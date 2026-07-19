@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labour Dashboard – Labour Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 50vh; width: 100%; margin: 20px 0; border-radius: 10px; border: 2px solid #0B3D91; }
+        .dashboard-container { padding: 20px 30px; background: #eef3f8; }
+        .id-display { background: rgba(11,61,145,0.9); color: white; padding: 8px 15px; border-radius: 8px; font-weight: 600; }
+        .lang-switch { display: flex; gap: 10px; margin: 10px 0; }
+        .lang-switch button { padding: 6px 12px; border: 1px solid #0B3D91; background: white; color: #0B3D91; border-radius: 4px; cursor: pointer; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin: 15px 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .flex-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .flex-row > * { flex: 1; min-width: 250px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #0B3D91; color: white; padding: 10px; text-align: left; }
+        td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+        input, select, button { padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+        button { background: #0B3D91; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0a2f6e; }
+        .graph-container { height: 300px; }
+        .earnings-preview { margin-top: 15px; font-size: 18px; font-weight: bold; color: #0B3D91; }
+    </style>
+</head>
+<body>
+
+<div class="tricolor-ribbon">
+    <div class="ribbon-saffron"></div>
+    <div class="ribbon-white"></div>
+    <div class="ribbon-green"></div>
+</div>
+
+<header class="gov-header">
+    <img src="{{ url_for('static', filename='images/logo1.png') }}" class="top-logo">
+    <div class="header-text">
+        <h1>श्रम प्रबंधन प्रणाली</h1>
+        <p>Labour Management System</p>
+    </div>
+    <div class="lang-switch" id="langSwitch">
+        <button onclick="setDashboardLanguage('en')">English</button>
+        <button onclick="setDashboardLanguage('te')">తెలుగు</button>
+        <button onclick="setDashboardLanguage('hi')">हिन्दी</button>
+    </div>
+</header>
+
+<div class="dashboard-container">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 id="dashboardTitle">Labour Dashboard</h2>
+        <div class="id-display" id="labourIdDisplay">ID: {{ labour_id }}</div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Location & Intersection Info -->
+    <div id="location-info" class="card" style="display:none;"></div>
+
+    <!-- Worker selection & hourly rate -->
+    <div class="card">
+        <h3 id="selectWorkerTitle">Select Your Profession</h3>
+        <div class="flex-row">
+            <select id="workerSelect">
+                <option value="">-- Choose Worker --</option>
+            </select>
+            <button id="calcRateBtn" onclick="calculateHourlyRate()">Calculate</button>
+        </div>
+        <div id="hourlyRateDisplay" style="margin-top:15px; font-weight:bold;"></div>
+    </div>
+
+    <!-- Daily entry form -->
+    <div class="card" id="dailyEntryCard">
+        <h3 id="dailyEntryTitle">Daily Work Entry</h3>
+        <div class="flex-row">
+            <div>
+                <label id="hoursLabel">Hours Worked (max 10)</label>
+                <input type="number" id="hoursInput" min="0" max="10" step="0.5" value="8" oninput="updateDailyPreview()">
+            </div>
+            <div>
+                <label id="contractorPaidLabel">Contractor Paid (₹)</label>
+                <input type="number" id="contractorPaidInput" min="0" step="1" value="0">
+            </div>
+        </div>
+        <div class="earnings-preview" id="dailyEarningsPreview"></div>
+        <button id="saveEntryBtn" onclick="saveDailyEntry()">Save Entry</button>
+    </div>
+
+    <!-- History table -->
+    <div class="card">
+        <h3 id="historyTitle">Your Daily Earnings</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th id="thDate">Date</th>
+                    <th id="thWorker">Worker</th>
+                    <th id="thHours">Hours</th>
+                    <th id="thCalculated">Calculated (₹)</th>
+                    <th id="thContractorPaid">Contractor Paid (₹)</th>
+                </tr>
+            </thead>
+            <tbody id="earningsBody">
+                {% for e in earnings %}
+                <tr>
+                    <td>{{ e.date }}</td>
+                    <td>{{ e.worker_type }}</td>
+                    <td>{{ e.hours }}</td>
+                    <td>{{ e.calculated_earnings }}</td>
+                    <td>{{ e.contractor_paid }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin-top:15px; font-weight:bold;" id="totalDisplay">
+            Total Received: ₹{{ total_contractor_paid }}
+        </div>
+    </div>
+
+    <!-- Comparison Graph -->
+    <div class="card">
+        <h3 id="graphTitle">Calculated vs Actual Received (Last 7 Days)</h3>
+        <div class="graph-container">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+    </div>
+
+    <a href="{{ url_for('labour') }}" class="back-btn">← Back to Login</a>
+</div>
+
+<div id="chakra-overlay" class="chakra-overlay">
+    <div class="chakra-spinner">
+        <svg viewBox="0 0 60 60" width="80" height="80">
+            <circle cx="30" cy="30" r="8" fill="none" stroke="#0B3D91" stroke-width="3"/>
+            <circle cx="30" cy="30" r="16" fill="none" stroke="#FF9933" stroke-width="1" stroke-dasharray="4 4"/>
+            <line x1="30" y1="14" x2="30" y2="46" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="14" y1="30" x2="46" y2="30" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="18.34" y1="18.34" x2="41.66" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+            <line x1="41.66" y1="18.34" x2="18.34" y2="41.66" stroke="#0B3D91" stroke-width="2"/>
+        </svg>
+        <p>Loading...</p>
+    </div>
+</div>
+
+<footer>© Ministry of Labour & Employment, Government of India</footer>
+
+<!-- Leaflet & Chart.js -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<script>
+    const circlesData = {{ map_data | tojson }};
+    const workersData = {{ workers | tojson }};
+    const earningsData = {{ earnings | tojson }};
+    const labourId = "{{ labour_id }}";
+
+    const dashLang = {
+        en: {
+            dashboardTitle: "Labour Dashboard",
+            selectWorkerTitle: "Select Your Profession",
+            dailyEntryTitle: "Daily Work Entry",
+            hoursLabel: "Hours Worked (max 10)",
+            contractorPaidLabel: "Contractor Paid (₹)",
+            historyTitle: "Your Daily Earnings",
+            thDate: "Date",
+            thWorker: "Worker",
+            thHours: "Hours",
+            thCalculated: "Calculated (₹)",
+            thContractorPaid: "Contractor Paid (₹)",
+            totalPrefix: "Total Received: ₹",
+            graphTitle: "Calculated vs Actual Received (Last 7 Days)",
+            locationInfoPrefix: "Your Location",
+            intersectingCircles: "Intersecting Circles",
+            green: "Green", yellow: "Yellow", red: "Red",
+            noIntersection: "No intersecting circles.",
+            hourlyRateLabel: "Hourly Rate (₹)",
+            workerSelectDefault: "-- Choose Worker --",
+            saveBtn: "Save Entry",
+            calcBtn: "Calculate",
+            backLogin: "← Back to Login",
+            loading: "Loading...",
+            dailyEarningsPreview: "Your estimated earnings for today: ₹",
+            // Worker translations (English – same as value)
+            workerTranslations: {
+                "Labourer": "Labourer", "Harvester": "Harvester", "Helper": "Helper", "Mazdoor": "Mazdoor",
+                "Beldar": "Beldar", "Loader": "Loader", "Palledar": "Palledar", "Sweeper": "Sweeper",
+                "Waterman": "Waterman", "Herder": "Herder", "Dishwasher": "Dishwasher", "Apprentice": "Apprentice",
+                "Assistant": "Assistant", "Guard": "Guard", "Attendant": "Attendant", "Operator": "Operator",
+                "Moulder": "Moulder", "Driver": "Driver", "Watchman": "Watchman", "Laundryman": "Laundryman",
+                "Stitcher": "Stitcher", "Khalasi": "Khalasi", "Mechanic": "Mechanic", "Mason": "Mason",
+                "Carpenter": "Carpenter", "Electrician": "Electrician", "Welder": "Welder", "Plumber": "Plumber",
+                "Painter": "Painter", "Driller": "Driller", "Tailor": "Tailor"
+            }
+        },
+        te: {
+            dashboardTitle: "లేబర్ డాష్‌బోర్డ్",
+            selectWorkerTitle: "మీ వృత్తిని ఎంచుకోండి",
+            dailyEntryTitle: "రోజువారీ పని నమోదు",
+            hoursLabel: "పని గంటలు (గరిష్టం 10)",
+            contractorPaidLabel: "కాంట్రాక్టర్ చెల్లించినది (₹)",
+            historyTitle: "మీ రోజువారీ ఆదాయాలు",
+            thDate: "తేదీ",
+            thWorker: "కార్మికుడు",
+            thHours: "గంటలు",
+            thCalculated: "లెక్కించిన (₹)",
+            thContractorPaid: "కాంట్రాక్టర్ చెల్లింపు (₹)",
+            totalPrefix: "మొత్తం స్వీకరించినది: ₹",
+            graphTitle: "లెక్కించిన vs అసలు స్వీకరించిన (గత 7 రోజులు)",
+            locationInfoPrefix: "మీ స్థానం",
+            intersectingCircles: "కలిసే వృత్తాలు",
+            green: "ఆకుపచ్చ", yellow: "పసుపు", red: "ఎరుపు",
+            noIntersection: "కలిసే వృత్తాలు లేవు.",
+            hourlyRateLabel: "గంట రేటు (₹)",
+            workerSelectDefault: "-- కార్మికుడిని ఎంచుకోండి --",
+            saveBtn: "ఎంట్రీని సేవ్ చేయండి",
+            calcBtn: "లెక్కించు",
+            backLogin: "← లాగిన్‌కి తిరిగి",
+            loading: "లోడ్ అవుతోంది...",
+            dailyEarningsPreview: "ఈ రోజు మీ అంచనా ఆదాయం: ₹",
+            workerTranslations: {
+                "Labourer": "కూలీ", "Harvester": "పంట కోసేవాడు", "Helper": "సహాయకుడు", "Mazdoor": "మజ్దూర్",
+                "Beldar": "బెల్దార్", "Loader": "లోడర్", "Palledar": "పల్లెదార్", "Sweeper": "ఊడ్చేవాడు",
+                "Waterman": "నీటి మనిషి", "Herder": "గొర్రెల కాపరి", "Dishwasher": "పాత్రలు కడిగేవాడు", "Apprentice": "అప్రెంటిస్",
+                "Assistant": "సహాయకుడు", "Guard": "గార్డు", "Attendant": "అటెండెంట్", "Operator": "ఆపరేటర్",
+                "Moulder": "మౌల్డర్", "Driver": "డ్రైవర్", "Watchman": "కాపలాదారు", "Laundryman": "లాండ్రీ మనిషి",
+                "Stitcher": "కుట్టేవాడు", "Khalasi": "ఖలాసి", "Mechanic": "మెకానిక్", "Mason": "మేస్త్రి",
+                "Carpenter": "వడ్రంగి", "Electrician": "ఎలక్ట్రీషియన్", "Welder": "వెల్డర్", "Plumber": "ప్లంబర్",
+                "Painter": "పెయింటర్", "Driller": "డ్రిల్లర్", "Tailor": "టైలర్"
+            }
+        },
+        hi: {
+            dashboardTitle: "श्रम डैशबोर्ड",
+            selectWorkerTitle: "अपना पेशा चुनें",
+            dailyEntryTitle: "दैनिक कार्य प्रविष्टि",
+            hoursLabel: "काम के घंटे (अधिकतम 10)",
+            contractorPaidLabel: "ठेकेदार द्वारा भुगतान (₹)",
+            historyTitle: "आपकी दैनिक कमाई",
+            thDate: "दिनांक",
+            thWorker: "श्रमिक",
+            thHours: "घंटे",
+            thCalculated: "गणना (₹)",
+            thContractorPaid: "ठेकेदार भुगतान (₹)",
+            totalPrefix: "कुल प्राप्त: ₹",
+            graphTitle: "गणना बनाम वास्तविक प्राप्त (पिछले 7 दिन)",
+            locationInfoPrefix: "आपका स्थान",
+            intersectingCircles: "प्रतिच्छेदी वृत्त",
+            green: "हरा", yellow: "पीला", red: "लाल",
+            noIntersection: "कोई प्रतिच्छेदी वृत्त नहीं।",
+            hourlyRateLabel: "घंटे की दर (₹)",
+            workerSelectDefault: "-- श्रमिक चुनें --",
+            saveBtn: "प्रविष्टि सहेजें",
+            calcBtn: "गणना करें",
+            backLogin: "← लॉगिन पर वापस",
+            loading: "लोड हो रहा है...",
+            dailyEarningsPreview: "आज के लिए आपकी अनुमानित कमाई: ₹",
+            workerTranslations: {
+                "Labourer": "मजदूर", "Harvester": "फसल काटने वाला", "Helper": "सहायक", "Mazdoor": "मजदूर",
+                "Beldar": "बेलदार", "Loader": "लोडर", "Palledar": "पल्लेदार", "Sweeper": "सफाई कर्मचारी",
+                "Waterman": "पानी वाला", "Herder": "चरवाहा", "Dishwasher": "बर्तन धोने वाला", "Apprentice": "प्रशिक्षु",
+                "Assistant": "सहायक", "Guard": "गार्ड", "Attendant": "अटेंडेंट", "Operator": "ऑपरेटर",
+                "Moulder": "मोल्डर", "Driver": "चालक", "Watchman": "चौकीदार", "Laundryman": "धोबी",
+                "Stitcher": "सिलाई करने वाला", "Khalasi": "खलासी", "Mechanic": "मिस्त्री", "Mason": "राजमिस्त्री",
+                "Carpenter": "बढ़ई", "Electrician": "बिजली मिस्त्री", "Welder": "वेल्डर", "Plumber": "प्लंबर",
+                "Painter": "पेंटर", "Driller": "ड्रिलर", "Tailor": "दर्जी"
+            }
+        }
+    };
+
+    let currentLang = 'en';
+    function setDashboardLanguage(lang) {
+        currentLang = lang;
+        const t = dashLang[lang];
+        document.getElementById("dashboardTitle").innerText = t.dashboardTitle;
+        document.getElementById("selectWorkerTitle").innerText = t.selectWorkerTitle;
+        document.getElementById("dailyEntryTitle").innerText = t.dailyEntryTitle;
+        document.getElementById("hoursLabel").innerText = t.hoursLabel;
+        document.getElementById("contractorPaidLabel").innerText = t.contractorPaidLabel;
+        document.getElementById("historyTitle").innerText = t.historyTitle;
+        document.getElementById("thDate").innerText = t.thDate;
+        document.getElementById("thWorker").innerText = t.thWorker;
+        document.getElementById("thHours").innerText = t.thHours;
+        document.getElementById("thCalculated").innerText = t.thCalculated;
+        document.getElementById("thContractorPaid").innerText = t.thContractorPaid;
+        document.getElementById("graphTitle").innerText = t.graphTitle;
+        document.querySelector(".back-btn").innerText = t.backLogin;
+        document.querySelector("#chakra-overlay p").innerText = t.loading;
+        document.getElementById("calcRateBtn").innerText = t.calcBtn;
+        document.getElementById("saveEntryBtn").innerText = t.saveBtn;
+        // Update total prefix (keep amount)
+        const totalDisplay = document.getElementById("totalDisplay");
+        if (totalDisplay.innerText.includes("₹")) {
+            const amount = totalDisplay.innerText.replace(/[₹,]/g, '').trim();
+            totalDisplay.innerText = t.totalPrefix + amount;
+        }
+        // Repopulate dropdown with translated names
+        populateWorkerDropdown();
+        // Update location info text (if visible)
+        updateLocationInfoText();
+        // Update daily preview label
+        updateDailyPreview();
+        localStorage.setItem("labour_dash_lang", lang);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+        const saved = localStorage.getItem("labour_dash_lang") || "en";
+        setDashboardLanguage(saved);
+        initMap();
+    });
+
+    function populateWorkerDropdown() {
+        const select = document.getElementById("workerSelect");
+        // Clear existing options (keep the default placeholder)
+        select.innerHTML = '';
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.text = dashLang[currentLang].workerSelectDefault;
+        select.appendChild(defaultOption);
+
+        const uniqueWorkers = [...new Set(workersData.map(w => w[1]))];
+        const translations = dashLang[currentLang].workerTranslations;
+        uniqueWorkers.forEach(worker => {
+            const option = document.createElement("option");
+            option.value = worker; // keep English for backend
+            option.text = translations[worker] || worker; // show translated name
+            select.appendChild(option);
+        });
+    }
+
+    let map, userMarker;
+    let intersectingCircles = [];
+    let hourlyRate = 0;
+
+    function initMap() {
+        map = L.map('map').setView([16.5, 80.6], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        circlesData.forEach(item => {
+            const color = item.priority === 1 ? '#00cc00' : (item.priority === 2 ? '#ffcc00' : '#ff3300');
+            L.circle([item.lat, item.lng], {
+                color: color, fillColor: color, fillOpacity: 0.2, radius: item.radius_m
+            }).addTo(map).bindPopup(`${item.mandal}<br>Priority: ${item.priority}`);
+        });
+
+        getUserLocation();
+    }
+
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                processUserLocation(pos.coords.latitude, pos.coords.longitude);
+            }, err => {
+                console.warn("Geolocation error, using default");
+                processUserLocation(16.5, 80.6);
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        }
+    }
+
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371000;
+        const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lng2-lng1) * Math.PI/180;
+        const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function processUserLocation(lat, lng) {
+        map.setView([lat, lng], 10);
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker([lat, lng]).addTo(map).bindPopup("Your Location").openPopup();
+
+        intersectingCircles = circlesData.filter(c => haversineDistance(lat, lng, c.lat, c.lng) <= c.radius_m);
+        updateLocationInfoText();
+        document.getElementById("location-info").style.display = "block";
+        calculateHourlyRate();
+    }
+
+    function updateLocationInfoText() {
+        const infoDiv = document.getElementById("location-info");
+        const t = dashLang[currentLang];
+        let html = `<strong>${t.locationInfoPrefix}:</strong> `;
+        if (userMarker) {
+            const pos = userMarker.getLatLng();
+            html += `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}<br>`;
+        } else {
+            html += `<br>`;
+        }
+        if (intersectingCircles.length > 0) {
+            const counts = {1:0,2:0,3:0};
+            intersectingCircles.forEach(c => counts[c.priority]++);
+            html += `<strong>${t.intersectingCircles}:</strong> ${intersectingCircles.length} `;
+            html += `(${t.green}: ${counts[1]}, ${t.yellow}: ${counts[2]}, ${t.red}: ${counts[3]})`;
+        } else {
+            html += `<strong>${t.noIntersection}</strong>`;
+        }
+        infoDiv.innerHTML = html;
+    }
+
+    function calculateHourlyRate() {
+        const worker = document.getElementById("workerSelect").value;
+        if (!worker || intersectingCircles.length === 0) {
+            document.getElementById("hourlyRateDisplay").innerHTML = "";
+            hourlyRate = 0;
+            updateDailyPreview();
+            return;
+        }
+        const rates = {};
+        workersData.forEach(w => {
+            if (w[1] === worker) rates[w[0]] = parseFloat(w[2]);
+        });
+        const prioritiesPresent = [...new Set(intersectingCircles.map(c => c.priority))];
+        let finalRate = 0;
+        if (prioritiesPresent.length === 1) {
+            const prio = prioritiesPresent[0];
+            const base = rates[prio] || 0;
+            const bonus = prio === 1 ? 0.20 : (prio === 2 ? 0.15 : 0.10);
+            finalRate = base * (1 + bonus);
+        } else {
+            const basePays = intersectingCircles.map(c => rates[c.priority] || 0);
+            const avg = basePays.reduce((a,b)=>a+b,0) / basePays.length;
+            let extras = 0;
+            intersectingCircles.forEach(c => {
+                const bp = rates[c.priority] || 0;
+                if (c.priority === 1) extras += bp * 0.10;
+                else if (c.priority === 2) extras += bp * 0.075;
+                else if (c.priority === 3) extras += bp * 0.05;
+            });
+            finalRate = avg + extras;
+        }
+        finalRate *= 1.05;
+        hourlyRate = Math.round(finalRate * 100) / 100;
+        document.getElementById("hourlyRateDisplay").innerHTML = `<strong>${dashLang[currentLang].hourlyRateLabel}:</strong> ₹${hourlyRate.toFixed(2)}`;
+        updateDailyPreview();
+    }
+
+    function updateDailyPreview() {
+        const hours = parseFloat(document.getElementById("hoursInput").value) || 0;
+        const previewDiv = document.getElementById("dailyEarningsPreview");
+        if (hourlyRate && hours > 0) {
+            const estimated = hourlyRate * hours;
+            previewDiv.innerHTML = `${dashLang[currentLang].dailyEarningsPreview} ${estimated.toFixed(2)}`;
+        } else {
+            previewDiv.innerHTML = "";
+        }
+    }
+
+    async function saveDailyEntry() {
+        const worker = document.getElementById("workerSelect").value;
+        const hours = parseFloat(document.getElementById("hoursInput").value);
+        const contractorPaid = parseFloat(document.getElementById("contractorPaidInput").value);
+        if (!worker || isNaN(hours) || isNaN(contractorPaid)) {
+            alert("Please fill all fields correctly.");
+            return;
+        }
+        if (hours > 10) {
+            alert("Hours cannot exceed 10.");
+            return;
+        }
+        const calculated = hourlyRate * hours;
+        try {
+            const res = await fetch("/labour/save_entry", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    worker_type: worker,
+                    hours: hours,
+                    calculated: calculated,
+                    contractor_paid: contractorPaid
+                })
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                const err = await res.json();
+                alert(err.error || "Save failed");
+            }
+        } catch(e) {
+            alert("Network error");
+        }
+    }
+
+    function drawComparisonChart() {
+        const ctx = document.getElementById("comparisonChart").getContext("2d");
+        const recent = earningsData.slice(0, 7).reverse();
+        const labels = recent.map(e => e.date);
+        const calculatedVals = recent.map(e => e.calculated_earnings);
+        const paidVals = recent.map(e => e.contractor_paid);
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Calculated', data: calculatedVals, backgroundColor: '#0B3D91' },
+                    { label: 'Contractor Paid', data: paidVals, backgroundColor: '#FF9933' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+    drawComparisonChart();
+
+    document.querySelector(".back-btn").addEventListener("click", function(e) {
+        e.preventDefault();
+        document.getElementById("chakra-overlay").classList.add("active");
+        setTimeout(() => { window.location.href = this.href; }, 700);
+    });
+</script>
+</body>
+</html>
