@@ -5,9 +5,8 @@ A location‑based, AI‑powered platform for daily‑wage workers and contracto
 ## Demo Video
 
 Watch the full working of the project:  
-https://drive.google.com/file/d/YOUR_VIDEO_ID/view
-
-(Replace YOUR_VIDEO_ID with the actual ID from your Google Drive link.)
+https://drive.google.com/file/d/1vqDOtzVHZpx_PGx-5W2ib9uv-lYOKXQi/view
+https://drive.google.com/file/d/1vqDOtzVHZpx_PGx-5W2ib9uv-lYOKXQi/view?usp=drive_link
 
 ---
 
