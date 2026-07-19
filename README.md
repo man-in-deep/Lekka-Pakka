@@ -1,4 +1,8 @@
-# Lekka-Pakka
+Below is a **complete `README.md`** file for your project.  
+It includes an embedded video, detailed explanations of every mechanism, the wage‑calculation algorithm, the novel login system, and why the system matters for Andhra Pradesh’s labour ecosystem.
+
+Copy the entire content into a file named `README.md` in your GitHub repository.
+
 ---
 
 ```markdown
@@ -227,3 +231,6 @@ Deployed on [Render.com](https://render.com) with:
 ```
 
 ---
+
+Replace `YOUR_VIDEO_ID` with the actual Google Drive file ID.  
+This README explains every mechanism, algorithm, and the “why” behind the project, making it clear why the system is both novel and necessary for the target users.
